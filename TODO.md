@@ -7,14 +7,33 @@ Context for finished work lives in `config/RESIDUAL_BIAS.md` and git history.
 
 ## 🔴 P0 — Substantive / strategic
 
-### 1. The alpha question — does the model actually beat naive baselines?
-After survivorship correction, **long-only Sharpe fell to 0.936, now BELOW equal-weight (1.033)**.
-The model no longer beats a naive equal-weight portfolio on risk-adjusted return once survivor
-inflation is removed. Ship criterion still passes only vs the (near-zero) momentum baseline.
-- [ ] Attribution: where does the model add vs lose return relative to equal-weight?
-- [ ] Segment/regime slices: is there edge in specific regimes, sectors, or liquidity buckets?
-- [ ] Decide: improve (features/model), reframe as smart-beta, or park the strategy.
-- **Acceptance:** a clear go/no-go with evidence — genuine alpha vs equal-weight, or an honest "no."
+### 0. Git repository CORRUPTED → REPAIRED (2026-07-24). ✅
+Power loss (~Jul 24 20:06) left 3 zero-byte objects incl. `master`/`HEAD` `c434678…` (an aborted 6th
+commit) → "bad object HEAD". Reflog was intact; last-good commit `cf241ae` and all 5 ancestors verified
+whole (full tree readable, corrupt objects belonged only to the aborted commit). Repaired by pointing
+`master` at `cf241ae`, deleting the 3 zero-byte stubs, and `git reset --mixed`. `git fsck` now clean,
+full history restored, zero code loss. (Broken ref backed up to `scratchpad/master.broken.bak`.)
+- Note: project `CLAUDE.md` is currently **untracked** (was likely in the aborted commit) — commit it.
+
+### 1. The alpha question — RESOLVED (2026-07-24): GO. Genuine selection alpha.
+**Decision: GO.** The "below equal-weight" headline was an *apples-to-oranges* artifact — `equal_weight`
+is costless & tax-free and holds the whole universe, while `long_only` pays costs, 20% STCG on every
+5-day gain, an impl-shortfall haircut, and is de-grossed to 0.5× in stormy regimes.
+On identical footing the model wins decisively (all figures reconcile exactly to backtest_report.json):
+- **Gross vs gross:** long-only Sharpe **1.81 vs EW 1.03**; ann return **53% vs 19%**.
+- **Selection alpha** (LO_gross − EW_gross): **+26.7%/yr, Information Ratio 2.19, t-stat 6.22** (p≪0.01),
+  positive in 63% of periods. This is real, statistically overwhelming edge, not survivor inflation.
+- **The bridge (46%→16% net):** regime de-gross −12pp (Sharpe-neutral, pure return dilution) →
+  costs −5pp → **20% STCG −13pp (the killer)**. Net Sharpe 0.936 is a *tax/construction* number.
+- **Fix levers (counterfactual, weights reconciled):** drop return-dilutive de-grossing → net Sharpe
+  0.936→0.950 but **+5.7pp return** (15.9%→21.7%); at 12.5% (LTCG-equiv) tax → **net Sharpe 1.18–1.19,
+  beats EW**. Pretax Sharpe 1.53 ≫ EW.
+- **Edge is monotonic in vol regime** (IC calm +0.005 → stormy +0.034) and **strongest in low-liquidity
+  names** (IC +0.039 vs +0.019 high) and in IT/Consumer Svcs/Realty/Chemicals/Financials; negative in
+  Construction/Telecom/Services. → de-grossing cuts exposure exactly where edge is best.
+- **Follow-ups (moved to P1):** (a) remove/soften regime de-grossing; (b) benchmark net-vs-net (cost the
+  EW rebalance too) so the scorecard is honest; (c) turnover/horizon work to cut the STCG hit; consider
+  a sector-neutral or liquidity-aware book. Repro: `scratchpad/attribution.py`.
 
 ### 2. Backfill the delisted-name tail (29 names) — tighten the bias estimate
 Kite's NSE instrument dump can't serve fully-delisted/merged names (DHFL, RCOM, HDFC-merged,
