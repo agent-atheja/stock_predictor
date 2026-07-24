@@ -141,3 +141,24 @@ python main.py train
 ```
 
 Until steps 1–4 are done, treat backtest numbers as **survivor-biased (optimistic)**.
+
+---
+
+## MEASURED IMPACT 2026-07-24 — survivorship bias quantified
+
+Backfilled 81/110 losers (29 truly-delisted names — DHFL, RCOM, HDFC-merged, bankrupt/delisted —
+are NOT in Kite's current NSE instrument dump; need archived bhavcopy or a vendor). Gold universe
+200 → 281 symbols; `is_member` is now 562k True / 127k False (was 100% True). Retrained + re-backtested.
+
+| Metric (long-only) | Survivor-only | +81 losers | Δ |
+|---|---|---|---|
+| Sharpe | 1.116 | **0.936** | −0.18 |
+| CAGR | 18.1% | **15.6%** | −2.6pp |
+| Max drawdown | −24.8% | **−32.9%** | −8.1pp worse |
+
+Long-short: Sharpe 0.833 → 0.662, CAGR 9.3% → 7.5%, maxDD −16.9% → −24.3%.
+
+**This is a LOWER BOUND** — the 29 unfetchable names are often the worst performers, so true
+survivorship bias is larger. **Flag:** post-correction long-only Sharpe (0.936) is now BELOW the
+equal-weight baseline (1.033) — the model no longer beats naive equal-weight on Sharpe once
+survivor inflation is removed. Ship criterion still passes (vs momentum baseline 0.003).
