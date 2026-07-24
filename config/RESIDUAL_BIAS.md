@@ -1,10 +1,11 @@
 # Survivorship Bias — What's Fixed, What Remains (MVP honest ledger)
 
-**Status as of 2026-07-24.** BLUF: the PIT-membership *mechanism* is fixed, hardened, and
-tested, and a **self-contained listing-bound firewall** now makes the membership record correct.
-But the **backtest universe is still survivor-only**, and closing that gap is **gated on Kite**
-(item 1) — no code change alone can fix it. Do not read current backtest Sharpe/CAGR as
-survivorship-clean.
+**Status as of 2026-07-24.** BLUF: PIT-membership mechanism fixed + hardened + tested; listing-bound
+firewall applied; **81 real historical losers backfilled into the universe** (200→281 in Gold).
+Survivorship bias is now **partially corrected and quantified** — see "MEASURED IMPACT" at the
+bottom (long-only Sharpe 1.12→0.94). Sections below are a chronological ledger; the earliest ones
+describe pre-backfill states — **the MEASURED IMPACT section is the current truth.** Residual: 29
+truly-delisted names (worst performers) still unfetchable via Kite → measured delta is a lower bound.
 
 ---
 
