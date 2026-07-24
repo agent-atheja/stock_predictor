@@ -1,0 +1,23 @@
+# Secrets — never commit
+secrets/.env
+secrets/access_token.txt
+
+# Data lake (regenerable) & artifacts
+datalake/bronze/
+datalake/silver/
+datalake/gold/
+models/registry/*.txt
+models/registry/*.joblib
+models/registry/*.json
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Regenerable caches (instruments dump, wayback snapshots)
+datalake/cache/

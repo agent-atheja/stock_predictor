@@ -1,0 +1,105 @@
+# ─────────────────────────────────────────────────────────────
+# Indian Stock Predictor — central configuration
+# All tunables live here; code reads via core.config.load_config()
+# ─────────────────────────────────────────────────────────────
+
+project:
+  name: indian-stock-predictor
+  timezone: Asia/Kolkata
+
+universe:
+  # Point-in-time NIFTY 100/200 membership drives the tradable set.
+  index: NIFTY200            # NIFTY100 | NIFTY200
+  pit_membership_csv: config/nifty200_membership_history.csv
+  min_price_inr: 50          # penny-stock floor
+  min_avg_turnover_cr: 5     # 20d avg daily turnover (₹ crore) liquidity floor
+
+data:
+  root: datalake
+  bronze: datalake/bronze
+  silver: datalake/silver
+  gold: datalake/gold
+  history_start: "2015-01-01"   # deep backfill start
+  bar: day                       # day (v1) | minute (LATER)
+  # Is the Bronze source already split/bonus adjusted? Kite historical = TRUE (adjusted at
+  # source) → Silver must NOT re-apply corporate_actions.csv (would double-adjust). jugaad
+  # bhavcopy = FALSE (raw) → Silver applies the CA file. Set to match your backfill source.
+  source_adjusted: true          # we backfilled via Kite
+
+label:
+  horizon_days: 5                # 5-trading-day forward return
+  winsorize_pct: 0.01            # clip tails at 1/99 pct
+  cross_sectional_zscore: true   # standardize per day
+
+features:
+  return_windows:   [1, 5, 10, 21, 63]
+  vol_windows:      [10, 21, 63]
+  rsi_period:       14
+  atr_period:       14
+  bb_period:        20
+  benchmark: "^NSEI"             # NIFTY 50 index for beta / market cues
+
+model:
+  type: lgbm_ranker              # lgbm_ranker | lgbm_reg
+  objective: lambdarank
+  n_ensemble_seeds: 3            # seed-averaging for stability
+  recency_halflife_days: 504     # ~2y half-life recency weighting (0 = uniform)
+  ensemble_xgb: true             # add an XGBoost member, scale-normalized then averaged
+  registry_dir: models/registry
+
+walkforward:
+  scheme: expanding              # expanding | rolling
+  train_min_days: 756            # ~3y minimum training window
+  test_step_days: 21             # refit monthly, test next month
+  embargo_days: 10               # > horizon(5) to kill label-maturation leakage
+  purge: true
+
+backtest:
+  top_n: 20                      # long book size
+  bottom_n: 20                   # short book size (0 = long-only)
+  weighting: vol_target          # equal | vol_target
+  max_position_pct: 0.08
+  max_sector_pct: 0.30
+  # Indian round-trip cost model (bps unless noted)
+  costs:
+    brokerage_bps: 3
+    stt_bps: 10                  # sell-side, delivery
+    exchange_txn_bps: 0.35
+    gst_pct_on_charges: 18
+    stamp_duty_bps: 1.5          # buy-side
+    slippage_bps_by_liquidity:   # by turnover bucket
+      high: 3
+      mid: 8
+      low: 20
+  # Short-term capital gains: 5-day holds are always STCG. Budget 2024 raised this to 20%.
+  # Applied to positive post-cost period returns — a material drag at high turnover.
+  apply_stcg_tax: true
+  stcg_pct: 20
+  # Gross-exposure multiplier by volatility regime [low, mid, high]. De-gross in high-vol
+  # (crash) regimes to cut drawdown; the rest sits in cash (0 return) for that period.
+  regime_gross_scaling: [1.0, 1.0, 0.5]
+  # EWMA smoothing of scores across rebalances (1.0 = no smoothing). Lower = stickier books =
+  # less turnover = less cost/tax drag, at some ranking freshness cost.
+  score_smoothing_alpha: 0.6
+  # Implementation shortfall: signals form on close t but fill at t+1. Extra bps on traded
+  # notional for that gap, on top of the modeled slippage.
+  impl_shortfall_bps: 5
+
+concurrency:
+  # I/O-bound (Kite/jugaad fetches) — threaded, rate-limited
+  io_workers: 6
+  kite_rate_limit_per_sec: 2.5   # under Kite's ~3 req/s hard cap (headroom for retries/jitter)
+  # CPU-bound (feature build, walk-forward folds) — process pool
+  cpu_workers: 20                # of 24 threads; leave headroom
+  chunk_size: 25                 # symbols per worker task
+
+kite:
+  # Self-contained auth — everything lives inside this project's secrets/ dir.
+  # Populate secrets/.env (see secrets/.env.example) and run:  python -m ingest.kite_client login
+  api_key_env: KITE_API_KEY
+  api_secret_env: KITE_API_SECRET
+  access_token_path: secrets/access_token.txt
+
+logging:
+  level: INFO
+  dir: logs

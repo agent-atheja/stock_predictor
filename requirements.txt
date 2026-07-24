@@ -1,0 +1,35 @@
+# ── Core data ─────────────────────────────────────────────
+pandas>=2.2
+numpy>=1.26
+polars>=1.0
+pyarrow>=16.0
+duckdb>=1.0
+PyYAML>=6.0
+
+# ── Market data sources ───────────────────────────────────
+kiteconnect>=5.0          # Zerodha Kite Connect (authoritative live/daily)
+jugaad-data>=0.26         # NSE bhavcopy deep-history backfill + cross-check
+yfinance>=0.2             # index cues / gap-fill cross-check
+
+# ── Modeling ──────────────────────────────────────────────
+lightgbm>=4.3             # primary cross-sectional ranker
+scikit-learn>=1.4         # pipelines, metrics, preprocessing scaffolding
+optuna>=3.6               # Bayesian HPO (inside walk-forward folds only)
+shap>=0.45                # explainability / leakage detection / trust gate
+xgboost>=2.0              # ensemble member / cross-check
+catboost>=1.2             # ensemble member (native categorical)
+hmmlearn>=0.3             # rolling Gaussian HMM regime model
+
+# ── Backtest / analytics ──────────────────────────────────
+vectorbt>=0.26            # fast vectorized backtest cross-check
+scipy>=1.13
+
+# ── Serving / ops ─────────────────────────────────────────
+streamlit>=1.35           # dashboard
+APScheduler>=3.10         # daily scheduling (NEXT phase)
+python-dotenv>=1.0        # local secrets loading
+tenacity>=8.3             # retry/backoff for API calls
+tqdm>=4.66
+
+# ── Testing ───────────────────────────────────────────────
+pytest>=8.2
