@@ -82,7 +82,11 @@ def _log_report(report: dict) -> None:
 
     mom = report["baselines"]["momentum_12_1"].get("sharpe", float("nan"))
     log.info("── Baselines (Sharpe) ──")
-    log.info("  equal_weight     %.4f", report["baselines"]["equal_weight"].get("sharpe", float("nan")))
+    log.info("  equal_weight     %.4f  (gross, costless/tax-free)",
+             report["baselines"]["equal_weight"].get("sharpe", float("nan")))
+    ewn = report["baselines"].get("equal_weight_net", {})
+    log.info("  equal_weight_net %.4f  (net of same cost+STCG — the honest benchmark)",
+             ewn.get("sharpe", float("nan")))
     log.info("  momentum_12_1    %.4f", mom)
     # Ship on the DEPLOYABLE (long-only) net-of-tax Sharpe beating the momentum baseline.
     lo_sharpe = report["strategy_long_only"].get("sharpe")

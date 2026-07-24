@@ -77,7 +77,7 @@ backtest:
   stcg_pct: 20
   # Gross-exposure multiplier by volatility regime [low, mid, high]. De-gross in high-vol
   # (crash) regimes to cut drawdown; the rest sits in cash (0 return) for that period.
-  regime_gross_scaling: [1.0, 1.0, 0.5]
+  regime_gross_scaling: [1.0, 1.0, 0.75]
   # EWMA smoothing of scores across rebalances (1.0 = no smoothing). Lower = stickier books =
   # less turnover = less cost/tax drag, at some ranking freshness cost.
   score_smoothing_alpha: 0.6
