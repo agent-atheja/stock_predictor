@@ -153,14 +153,47 @@ def run_baselines(oos: pd.DataFrame) -> dict:
     h = cfg.label.horizon_days
     ppy = 252 / h
 
-    # equal-weight universe (market proxy / buy&hold)
+    # equal-weight universe (market proxy / buy&hold) — GROSS, costless/tax-free
     ew = base.groupby("date")["fwd_ret_5d"].mean()
     ew = ew.iloc[::h]
     ew_perf = performance(ew, ppy)
+
+    # equal-weight NET — the honest apples-to-apples benchmark: same cost + STCG model the
+    # strategy pays, applied to a periodically-rebalanced equal-weight book. Without this the
+    # scorecard compares a taxed active strategy to a tax-free index and understates the edge.
+    ew_net_perf = _equal_weight_net(oos, cfg, h, ppy)
 
     # momentum long-short using the same portfolio construction.
     # Build a clean frame whose `score` IS the momentum signal (avoid colliding with the
     # model's score column already present on `base`).
     mom = base[["date", "symbol", "fwd_ret_5d", "mom_12_1"]].rename(columns={"mom_12_1": "score"})
     _, mom_perf = run_strategy(mom)
-    return {"equal_weight": ew_perf, "momentum_12_1": mom_perf}
+    return {"equal_weight": ew_perf, "equal_weight_net": ew_net_perf, "momentum_12_1": mom_perf}
+
+
+def _equal_weight_net(oos: pd.DataFrame, cfg, h: int, ppy: float) -> dict:
+    """Equal-weight book rebalanced every h days, charged the SAME round-trip cost + STCG tax as
+    the active strategy. No regime de-grossing (a passive holder stays invested). This is the
+    like-for-like benchmark the active net Sharpe should actually be judged against."""
+    e = enrich(oos)   # attach turnover_cr_20d for per-name liquidity cost buckets
+    dates = pd.Index(sorted(pd.to_datetime(e["date"].unique())))
+    rebs = list(dates[::h])
+    impl = getattr(cfg.backtest, "impl_shortfall_bps", 0) * 1e-4
+    prev, records = None, []
+    for dt in rebs:
+        day = e[e["date"] == dt]
+        if day.empty:
+            continue
+        book = day[["symbol", "turnover_cr_20d"]].copy()
+        book["weight"] = 1.0 / len(book)                       # equal weight
+        gross = float(day["fwd_ret_5d"].fillna(0).mean())      # equal-weight => mean fwd return
+        tno = turnover(prev, book)
+        cost = tno * (_book_weighted_cost_rate(book) + impl)
+        net_pretax = gross - cost
+        tax = _stcg_tax(net_pretax, cfg)
+        records.append({"date": dt, "net": net_pretax - tax, "turnover": tno})
+        prev = book
+    curve = pd.DataFrame(records).set_index("date")
+    perf = performance(curve["net"], ppy)
+    perf["avg_turnover"] = float(curve["turnover"].mean()) if not curve.empty else 0.0
+    return perf

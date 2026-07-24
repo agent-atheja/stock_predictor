@@ -31,9 +31,22 @@ On identical footing the model wins decisively (all figures reconcile exactly to
 - **Edge is monotonic in vol regime** (IC calm +0.005 → stormy +0.034) and **strongest in low-liquidity
   names** (IC +0.039 vs +0.019 high) and in IT/Consumer Svcs/Realty/Chemicals/Financials; negative in
   Construction/Telecom/Services. → de-grossing cuts exposure exactly where edge is best.
-- **Follow-ups (moved to P1):** (a) remove/soften regime de-grossing; (b) benchmark net-vs-net (cost the
-  EW rebalance too) so the scorecard is honest; (c) turnover/horizon work to cut the STCG hit; consider
-  a sector-neutral or liquidity-aware book. Repro: `scratchpad/attribution.py`.
+- **Follow-ups:** (a)✅ soften regime de-grossing; (b)✅ honest net-vs-net benchmark; (c) turnover/horizon
+  work to cut STCG hit (bigger effort); consider sector-neutral or liquidity-aware book. Repro:
+  `scratchpad/attribution.py`.
+
+**Fix-lever PROTOTYPE (2026-07-24, branch `exp/fix-levers`, real engine, OOS predictions):**
+- (b) Added `equal_weight_net` baseline — EW charged the *same* cost + 20% STCG. **EW-net Sharpe = 0.427**
+  (turnover only 1.3%/period, so the drop from gross 1.03 is almost pure tax). Honest scorecard:
+  **model long-only NET 0.936 vs EW-net 0.427 — model wins >2×.** The fair EW sits between the costless
+  1.03 (too generous) and taxed-rebalanced 0.43 (too harsh, a real holder wouldn't rebalance q5d); model
+  net clears the midpoint. The "below equal-weight" headline is dead.
+- (a) `regime_gross_scaling` grid — it's a risk/return dial, not a free lunch:
+    `[1,1,0.5]`(cur) Sharpe 0.936 / CAGR 15.6% / MaxDD −32.9%
+    `[1,1,0.75]`     Sharpe **0.958** / CAGR 18.3% / MaxDD −40.8%   ← Sharpe-best, RECOMMENDED
+    `[1,1,1.0]`      Sharpe 0.950 / CAGR 20.9% / MaxDD −48.4%
+  Branch left at `[1,1,0.75]` pending a risk-appetite sign-off; revert is a one-line dial. Code change
+  (EW-net baseline) is keep-regardless.
 
 ### 2. Backfill the delisted-name tail (29 names) — tighten the bias estimate
 Kite's NSE instrument dump can't serve fully-delisted/merged names (DHFL, RCOM, HDFC-merged,
