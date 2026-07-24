@@ -67,11 +67,13 @@ def main() -> int:
             log.warning("Kite instruments endpoint still cooled down (%s) — retry next tick.", exc)
             return 0
 
-        # Backfill only the missing names. If the instruments dump is still cooled down, the first
-        # call fails and backfill returns 0 rows — we detect that and retry later, no hammering.
+        # Backfill the FULL universe (current + losers), NOT just the missing names.
+        # write_partitioned overwrites each date-partition wholesale, so writing a subset would
+        # wipe the other symbols from those partitions. A full rewrite is the only safe idempotent
+        # operation. (The missing-check above only decides *whether* there is work to do.)
         from ingest.kite_backfill import backfill
         try:
-            n = backfill(symbols=missing)
+            n = backfill()  # symbols=None → all_symbols_ever()
         except Exception as exc:  # noqa: BLE001
             log.warning("Backfill attempt failed (%s) — retry next tick.", exc)
             return 0
