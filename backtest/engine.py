@@ -79,14 +79,15 @@ def run_strategy(oos: pd.DataFrame, score_col: str = "score", long_only: bool = 
         impl_bps = getattr(cfg.backtest, "impl_shortfall_bps", 0) * 1e-4
         cost = tno * (_book_weighted_cost_rate(merged) + impl_bps)
         net_pretax = gross - cost
-        tax = _stcg_tax(net_pretax, cfg)
         records.append({
             "date": dt, "gross": gross, "cost": cost,
-            "net_pretax": net_pretax, "tax": tax, "net": net_pretax - tax, "turnover": tno,
+            "net_pretax": net_pretax, "turnover": tno,
         })
         prev_book = book
 
     curve = pd.DataFrame(records).set_index("date")
+    curve["tax"] = _stcg_tax_series(curve["net_pretax"], cfg)   # STCG on the period series
+    curve["net"] = curve["net_pretax"] - curve["tax"]
     net = curve["net"]                      # headline series is AFTER cost AND tax
     ppy = 252 / h
     perf = performance(net, ppy)
@@ -133,6 +134,44 @@ def _regime_factor(day: pd.DataFrame, cfg) -> float:
         return 1.0
     r = int(r)
     return float(scaling[r]) if 0 <= r < len(scaling) else 1.0
+
+
+def _stcg_rate_for(d: pd.Timestamp, cfg) -> float:
+    """Sec 111A STCG rate on listed equity: 15% before 2024-07-23, 20% on/after (both configurable
+    via backtest.stcg_pct_pre_2024 / backtest.stcg_pct). Using a flat rate over 2018-2026 is wrong —
+    most of the sample is pre-2024 and taxed at 15%."""
+    bt = cfg.backtest
+    pre = getattr(bt, "stcg_pct_pre_2024", 15.0)
+    return (pre if d < pd.Timestamp("2024-07-23") else bt.stcg_pct) / 100.0
+
+
+def _stcg_tax_series(net_pretax: pd.Series, cfg) -> pd.Series:
+    """STCG tax on the period P&L series. Two models (backtest.stcg_annual_netting):
+
+    • annual_netting=True (realistic, default): India nets short-term gains and losses WITHIN the
+      financial year (Apr–Mar) — STCL sets off STCG (Sec 70/74). A ~20-day-hold strategy realizes
+      within the year, so tax = rate · max(Σ_FY net_pretax, 0), spread across the FY's up-periods for
+      the equity curve. (Positions open across 31-Mar defer their unrealized gain — a 2nd-order effect
+      this ignores; still far more accurate than per-period MTM.)
+    • annual_netting=False (legacy): tax every positive period independently (no loss offset) — an
+      over-statement that taxes unrealized mark-to-market and ignores losing periods.
+    """
+    bt = cfg.backtest
+    if not getattr(bt, "apply_stcg_tax", False):
+        return pd.Series(0.0, index=net_pretax.index)
+    if not getattr(bt, "stcg_annual_netting", True):
+        return pd.Series([max(v, 0.0) * _stcg_rate_for(d, cfg) for d, v in net_pretax.items()],
+                         index=net_pretax.index)
+    fy = pd.Index(net_pretax.index).map(lambda d: d.year if d.month >= 4 else d.year - 1)
+    tax = pd.Series(0.0, index=net_pretax.index)
+    for _, pos in pd.Series(range(len(net_pretax)), index=fy).groupby(level=0):
+        seg = net_pretax.iloc[pos.values]
+        rate = _stcg_rate_for(seg.index.max(), cfg)
+        due = max(seg.sum(), 0.0) * rate
+        gains = seg.clip(lower=0.0)
+        w = gains / gains.sum() if gains.sum() > 0 else gains
+        tax.iloc[pos.values] = due * w
+    return tax
 
 
 def _stcg_tax(period_return: float, cfg) -> float:
@@ -190,10 +229,10 @@ def _equal_weight_net(oos: pd.DataFrame, cfg, h: int, ppy: float) -> dict:
         tno = turnover(prev, book)
         cost = tno * (_book_weighted_cost_rate(book) + impl)
         net_pretax = gross - cost
-        tax = _stcg_tax(net_pretax, cfg)
-        records.append({"date": dt, "net": net_pretax - tax, "turnover": tno})
+        records.append({"date": dt, "net_pretax": net_pretax, "turnover": tno})
         prev = book
     curve = pd.DataFrame(records).set_index("date")
+    curve["net"] = curve["net_pretax"] - _stcg_tax_series(curve["net_pretax"], cfg)  # same tax model
     perf = performance(curve["net"], ppy)
     perf["avg_turnover"] = float(curve["turnover"].mean()) if not curve.empty else 0.0
     return perf

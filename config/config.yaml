@@ -74,7 +74,9 @@ backtest:
   # Short-term capital gains: 5-day holds are always STCG. Budget 2024 raised this to 20%.
   # Applied to positive post-cost period returns — a material drag at high turnover.
   apply_stcg_tax: true
-  stcg_pct: 20
+  stcg_pct: 20            # Sec 111A STCG rate on/after 2024-07-23
+  stcg_pct_pre_2024: 15  # Sec 111A rate before 2024-07-23 (most of the backtest sample)
+  stcg_annual_netting: true  # net STG gains/losses within the FY (Sec 70/74) — realistic; false = per-period MTM (legacy, overstates)
   # Gross-exposure multiplier by volatility regime [low, mid, high]. De-gross in high-vol
   # (crash) regimes to cut drawdown; the rest sits in cash (0 return) for that period.
   regime_gross_scaling: [1.0, 1.0, 0.75]

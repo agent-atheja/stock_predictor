@@ -31,9 +31,21 @@ On identical footing the model wins decisively (all figures reconcile exactly to
 - **Edge is monotonic in vol regime** (IC calm +0.005 → stormy +0.034) and **strongest in low-liquidity
   names** (IC +0.039 vs +0.019 high) and in IT/Consumer Svcs/Realty/Chemicals/Financials; negative in
   Construction/Telecom/Services. → de-grossing cuts exposure exactly where edge is best.
-- **Follow-ups:** (a)✅ soften regime de-grossing; (b)✅ honest net-vs-net benchmark; (c) turnover/horizon
-  work to cut STCG hit (bigger effort); consider sector-neutral or liquidity-aware book. Repro:
-  `scratchpad/attribution.py`.
+- **Follow-ups:** (a)✅ soften regime de-grossing; (b)✅ honest net-vs-net benchmark; (c)✅ cut the STCG
+  drag (see below — was a tax-MODEL bug, not a strategy problem); consider sector-neutral or
+  liquidity-aware book. Repro: `scratchpad/attribution.py`, `scratchpad/tax_analysis.py`.
+
+**STCG tax-model FIX (2026-07-25) — the −13pp "drag" was mostly a modeling artifact.**
+The engine taxed every 5-day up-period at a flat 20% with NO loss offset (per-period mark-to-market).
+Two defects, both corrected in `backtest/engine.py` (`_stcg_tax_series`, config-flagged, applied to the
+model AND the EW-net benchmark):
+1. **Wrong rate** — Sec 111A was **15% before 2024-07-23**, 20% after; flat 20% over-taxed the whole
+   pre-2024 sample. (`stcg_pct_pre_2024: 15`.)
+2. **No loss offset** — India nets STG gains/losses within the FY (Sec 70/74); a ~20-day-hold strategy
+   realizes within the year, so annual netting is correct. (`stcg_annual_netting: true`.)
+Effect (long-only, post-backfill [1,1,0.75]): **net Sharpe 0.849 → 1.243, CAGR 15.7% → 26.8%**, tax drag
+1.08 → 0.47 (~2.6× overstated before). **Model net 1.243 now beats even the costless EW (0.979)** and
+the honest EW-net (0.793, same fair tax). All 29 tests pass.
 
 **Fix-lever PROTOTYPE (2026-07-24, branch `exp/fix-levers`, real engine, OOS predictions):**
 - (b) Added `equal_weight_net` baseline — EW charged the *same* cost + 20% STCG. **EW-net Sharpe = 0.427**
