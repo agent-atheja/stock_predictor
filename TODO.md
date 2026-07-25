@@ -48,13 +48,26 @@ On identical footing the model wins decisively (all figures reconcile exactly to
   Branch left at `[1,1,0.75]` pending a risk-appetite sign-off; revert is a one-line dial. Code change
   (EW-net baseline) is keep-regardless.
 
-### 2. Backfill the delisted-name tail (29 names) — tighten the bias estimate
-Kite's NSE instrument dump can't serve fully-delisted/merged names (DHFL, RCOM, HDFC-merged,
-GRUH, INFRATEL, SYNDIBANK, GSKCONS, …). These are often the *worst* performers, so the current
-survivorship delta (Sharpe −0.18) is a **lower bound**.
-- [ ] Source their OHLCV from archived NSE bhavcopy (per-day zips, bulk-downloadable) or a vendor.
-- [ ] Load → Bronze → rebuild Silver/Gold → retrain + re-backtest.
-- **Acceptance:** all/most of the 29 have data; re-measured survivorship delta (expected larger).
+### 2. Backfill the delisted-name tail (29 names) — DATA DONE (2026-07-25); retrain running
+Kite can't serve fully-delisted/merged names (DHFL, RCOM, HDFC-merged, …) — the *worst* performers,
+so the pre-backfill survivorship delta was a **lower bound**. Now backfilled from the authoritative source.
+**What was done:**
+- **jugaad-data is UNUSABLE for the heavy delisted names** — it *interleaves a different same-ticker
+  security* day-by-day (HDFC alternated real ₹2,702 @ vol 4.4M with a fake ₹552 @ 184k; PEL fake +4243%;
+  also DHFL/IBULHSGFIN/IBVENTURES — HDFC ~28% of rows garbage). Simple outlier/median cleaning can't
+  salvage it. Superseded module deleted.
+- **Built `ingest/bhavcopy_backfill.py`** — pulls raw NSE bhavcopy (one true EQ row per symbol per day,
+  ISIN-stamped → no interleaving). Handles both formats (legacy `cmDDMONYYYYbhav` + UDiFF), disk-cached
+  per day, multi-pass gentle retry (aborts rather than merge a gap), pins each name to its **dominant
+  ISIN** (rejected 813 GUJGASLTD + 303 WELSPUNIND rows from a *different* company reusing the ticker),
+  tolerant date parse (one day used a 2-digit year), partition-safe merge into Bronze.
+- **All 29/29 backfilled clean**: 52,603 authoritative rows → Bronze now 310 symbols / 760,468 rows.
+  HDFC ₹2,724 @ merger (42M vol, real) max 1-day 13% (was 992%); PEL max 45% (was 4243%). Silver + Gold
+  rebuilt (DQ PASS, leakage tripwire PASS). Delisted names now carry `is_member` in their PIT windows
+  (HDFC 1,403 member-days → 2023 merger, DHFL 886 → 2021, etc.).
+- **Retrain + re-backtest RUNNING** (bg): 97 walk-forward folds. Baseline to beat (pre-backfill [1,1,0.75]):
+  long-only Sharpe 0.958 / CAGR 18.3% / MaxDD −40.8% (EW 1.033, EW-net 0.427). **Delta TBD on completion.**
+- **Acceptance:** ✅ trustworthy OHLCV for all 29; re-measured survivorship delta — PENDING retrain.
 
 ---
 
