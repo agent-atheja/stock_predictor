@@ -48,7 +48,7 @@ On identical footing the model wins decisively (all figures reconcile exactly to
   Branch left at `[1,1,0.75]` pending a risk-appetite sign-off; revert is a one-line dial. Code change
   (EW-net baseline) is keep-regardless.
 
-### 2. Backfill the delisted-name tail (29 names) — DATA DONE (2026-07-25); retrain running
+### 2. Backfill the delisted-name tail (29 names) — ✅ DONE (2026-07-25)
 Kite can't serve fully-delisted/merged names (DHFL, RCOM, HDFC-merged, …) — the *worst* performers,
 so the pre-backfill survivorship delta was a **lower bound**. Now backfilled from the authoritative source.
 **What was done:**
@@ -65,9 +65,12 @@ so the pre-backfill survivorship delta was a **lower bound**. Now backfilled fro
   HDFC ₹2,724 @ merger (42M vol, real) max 1-day 13% (was 992%); PEL max 45% (was 4243%). Silver + Gold
   rebuilt (DQ PASS, leakage tripwire PASS). Delisted names now carry `is_member` in their PIT windows
   (HDFC 1,403 member-days → 2023 merger, DHFL 886 → 2021, etc.).
-- **Retrain + re-backtest RUNNING** (bg): 97 walk-forward folds. Baseline to beat (pre-backfill [1,1,0.75]):
-  long-only Sharpe 0.958 / CAGR 18.3% / MaxDD −40.8% (EW 1.033, EW-net 0.427). **Delta TBD on completion.**
-- **Acceptance:** ✅ trustworthy OHLCV for all 29; re-measured survivorship delta — PENDING retrain.
+- **Retrained + re-backtested** (97 folds, same [1,1,0.75]). **SURVIVORSHIP DELTA (adding the 29 worst
+  losers):** long-only net Sharpe **0.958 → 0.849 (−0.109)**, CAGR 18.3%→15.7% (−2.6pp), MaxDD
+  −40.8%→−47.4%. Benchmarks drag too: EW gross 1.033→0.979, EW-net 0.427→0.373. gross 1.83→1.73.
+- **GO verdict HOLDS after the full correction:** model net **0.849 vs EW-net 0.373 = 2.27×**; gross
+  1.73 vs EW 0.98. Real alpha, honestly measured, worst historical losers included.
+- **Acceptance:** ✅ DONE — trustworthy OHLCV for all 29 (authoritative bhavcopy); delta re-measured.
 
 ---
 

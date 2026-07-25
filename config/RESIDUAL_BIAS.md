@@ -1,11 +1,22 @@
 # Survivorship Bias — What's Fixed, What Remains (MVP honest ledger)
 
-**Status as of 2026-07-24.** BLUF: PIT-membership mechanism fixed + hardened + tested; listing-bound
-firewall applied; **81 real historical losers backfilled into the universe** (200→281 in Gold).
-Survivorship bias is now **partially corrected and quantified** — see "MEASURED IMPACT" at the
-bottom (long-only Sharpe 1.12→0.94). Sections below are a chronological ledger; the earliest ones
-describe pre-backfill states — **the MEASURED IMPACT section is the current truth.** Residual: 29
-truly-delisted names (worst performers) still unfetchable via Kite → measured delta is a lower bound.
+**Status as of 2026-07-25.** BLUF: PIT-membership mechanism fixed + hardened + tested; listing-bound
+firewall applied; **all 110 real historical losers now backfilled into the universe** (200→310 in
+Gold). Survivorship bias is now **fully corrected and quantified** for the reconstructable universe.
+Sections below are a chronological ledger; the earliest ones describe pre-backfill states — **the
+MEASURED IMPACT section is the current truth.**
+
+**UPDATE 2026-07-25 — the final 29 delisted names are now backfilled (no longer a lower bound).**
+The 29 truly-delisted/merged names Kite couldn't serve (DHFL, RCOM, HDFC-merged, GRUH, SYNDIBANK,
+GSKCONS, FRETAIL, …) were sourced from **authoritative raw NSE bhavcopy** (`ingest/bhavcopy_backfill.py`),
+NOT jugaad-data — jugaad interleaves a *different same-ticker security* into these names' history
+(HDFC alternated real ₹2,702 with a fake ₹552; ~28% of rows garbage) and is unusable here. Bhavcopy
+gives one true ISIN-stamped EQ row per symbol/day; each name is pinned to its dominant ISIN to reject
+ticker-reuse. Gold universe went 281→310. **Re-measured survivorship delta from these 29 (at
+[1,1,0.75]): long-only net Sharpe 0.958→0.849 (−0.109), CAGR 18.3%→15.7%, MaxDD −40.8%→−47.4%;
+equal-weight also dropped (gross 1.033→0.979, net 0.427→0.373).** The model's edge over the honest
+net-of-cost/tax benchmark **survives** the full correction: net 0.849 vs EW-net 0.373 (2.27×). The
+"lower bound" caveat is retired; residual bias is now only from names never in any snapshot (below).
 
 ---
 
