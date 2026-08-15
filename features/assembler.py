@@ -48,7 +48,19 @@ def _tech_for_symbol(sym_df: pd.DataFrame) -> pd.DataFrame:
 def build_gold() -> int:
     cfg = load_config()
     with stage(log, "gold"):
-        silver = read_dataset(cfg.data.silver, "equity_ohlcv_adj")
+        # Silver comes from MDS when USE_MDS_SILVER=1, otherwise from the local
+        # Parquet lake exactly as before. Pinned to config history_start so the
+        # training window is identical either way — MDS carries history back to
+        # 1996 and silently widening it would confound any before/after backtest
+        # comparison with a data-quantity change.
+        from core.mds_source import is_enabled as _mds_enabled, read_silver as _mds_read
+
+        if _mds_enabled():
+            silver = _mds_read(start=str(cfg.data.history_start))
+            log.info("Silver sourced from MDS (USE_MDS_SILVER=1)")
+        else:
+            silver = read_dataset(cfg.data.silver, "equity_ohlcv_adj")
+
         if silver.empty:
             log.error("Silver is empty — run ingest.bronze_to_silver first.")
             return 0

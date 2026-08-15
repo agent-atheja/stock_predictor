@@ -47,13 +47,17 @@ SILVER_COLUMNS = [
 ]
 
 _SQL = """
-WITH base AS (
+WITH members AS (
+    SELECT DISTINCT symbol FROM dim.index_membership WHERE index_name = %(index_name)s
+),
+base AS (
     SELECT s.symbol, s.trade_date,
            s.open, s.high, s.low, s.close, s.volume,
            s.adj_open, s.adj_high, s.adj_low, s.adj_close,
            (s.adj_close * s.volume) AS turnover
       FROM silver.v_equity_ohlcv_published s
-     WHERE (%(start)s::date IS NULL OR s.trade_date >= %(start)s)
+     WHERE (NOT %(members_only)s OR s.symbol IN (SELECT symbol FROM members))
+       AND (%(start)s::date IS NULL OR s.trade_date >= %(start)s)
        AND (%(end)s::date   IS NULL OR s.trade_date <= %(end)s)
 ),
 liq AS (
@@ -81,19 +85,59 @@ SELECT l.symbol,
 """
 
 
+def _load_env() -> None:
+    """Populate the environment from secrets/.env, self-contained.
+
+    Today the only thing that loads that file is ``ingest/kite_client.py`` —
+    which this module exists to make redundant. Depending on it would mean the
+    cutover works right up until ``ingest/`` is retired and then silently stops
+    reading its own configuration. So the load is duplicated here rather than
+    imported, mirroring how kite_client does it.
+
+    ``override=False``: an explicitly exported variable must win over the file,
+    or pointing a run at a different database becomes impossible.
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    from core.config import resolve
+    try:
+        load_dotenv(resolve("secrets/.env"), override=False)
+    except Exception:                                  # noqa: BLE001
+        pass
+
+
 def is_enabled() -> bool:
+    if _ENV_FLAG not in os.environ:
+        _load_env()
     return os.environ.get(_ENV_FLAG, "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def read_silver(start: Optional[str] = None, end: Optional[str] = None,
-                index_name: str = "NIFTY200") -> pd.DataFrame:
+                index_name: str = "NIFTY200",
+                members_only: bool = True) -> pd.DataFrame:
     """Return the Silver panel from MDS, shaped exactly like the Parquet one.
+
+    ``members_only`` restricts to symbols that have EVER been in ``index_name``
+    — the equivalent of this project's ``all_symbols_ever()``. MDS publishes the
+    full ~3,100-symbol NSE universe, but ``apply_universe_filter`` discards
+    non-members downstream anyway, so building technicals for the other ~2,900
+    is pure cost. Set it False only to deliberately widen the universe.
 
     Raises on failure rather than returning empty: an empty Silver frame makes
     ``build_gold`` log "run bronze_to_silver first" and exit 0, which looks like
     a configuration problem and hides a database outage. A loud failure is the
     correct outcome for a missing data source.
     """
+    # Env override for the upper bound. Needed to reproduce a historical run
+    # exactly: MDS carries data past whatever date a baseline was built on, and
+    # an unpinned end silently extends the test window, which shows up as a
+    # model-quality change when it is really a different period.
+    end = end or os.environ.get("MDS_SILVER_END") or None
+
+    if "MDS_READER_DSN" not in os.environ:
+        _load_env()
     dsn = os.environ.get("MDS_READER_DSN")
     if not dsn:
         raise RuntimeError(
@@ -105,7 +149,8 @@ def read_silver(start: Optional[str] = None, end: Optional[str] = None,
     conn = psycopg2.connect(dsn)
     try:
         with conn.cursor() as cur:
-            cur.execute(_SQL, {"start": start, "end": end, "index_name": index_name})
+            cur.execute(_SQL, {"start": start, "end": end, "index_name": index_name,
+                               "members_only": members_only})
             cols = [d[0] for d in cur.description]
             df = pd.DataFrame(cur.fetchall(), columns=cols)
     finally:
