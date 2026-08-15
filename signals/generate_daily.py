@@ -43,6 +43,13 @@ def main() -> pd.DataFrame:
              as_of.date(), (ranked["bucket"] == "long").sum(),
              (ranked["bucket"] == "short").sum(), len(ranked))
     log.info("Top 5 longs: %s", ", ".join(ranked.head(5)["symbol"]))
+
+    # Persist to the shared prediction database. Opt-in via PUBLISH_SIGNALS and
+    # deliberately non-blocking: the CSV above is the operational artefact, and
+    # a database problem must not stop a book being produced.
+    from signals.publish import publish_safely
+    publish_safely(ranked, as_of.date())
+
     return ranked
 
 
