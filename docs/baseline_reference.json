@@ -1,0 +1,113 @@
+{
+  "baseline_id": "mds-2026-08-18",
+  "established_on": "2026-08-18",
+  "supersedes": "parquet-2026-07-25 (models/registry_baseline_20260725_prekite_cutover)",
+  "why": "MDS Silver and the legacy Parquet lake carry different adjustment vintages: 1.909% of common closes differ by >1%, persistently in every year. A backtest is a function of the prices, so 'reproduce the prior metrics' cannot be satisfied across a vintage change - not because either store is wrong, but because they are adjusted as of different moments. A matched control confirmed the difference is the source, not retraining: a fresh retrain on the Parquet lake reproduced the Jul-25 run to 4 decimals on max_drawdown.",
+  "data_contract": {
+    "source": "silver.v_equity_ohlcv_published",
+    "adj_vintage": "2026-08-18",
+    "silver_rows": 8002180,
+    "silver_symbols": 3274,
+    "published_dates": 7616,
+    "last_session": "2026-08-17",
+    "panel": "NIFTY200 PIT members, 310 symbols, 757799 rows from 2015-01-01"
+  },
+  "metrics": {
+    "strategy_long_short": {
+      "total_return": 1.7575570252745552,
+      "cagr": 0.1327974957910114,
+      "ann_vol": 0.25941978014968414,
+      "sharpe": 0.6113476627108663,
+      "sortino": 0.8979881770971533,
+      "max_drawdown": -0.45039364001657434,
+      "hit_rate": 0.5439024390243903,
+      "n_periods": 410,
+      "avg_turnover": 0.7897358039589212,
+      "gross_sharpe": 1.3205096890180643,
+      "pretax_sharpe": 0.7739998882770006,
+      "total_tax_drag": 0.38861483729422375,
+      "sharpe_ci95": [
+        -0.06525757661616217,
+        1.3246708067060218
+      ],
+      "ic_by_year": {
+        "2018": 0.021231635364105404,
+        "2019": -0.0004133797392516437,
+        "2020": -0.002394243592740545,
+        "2021": 0.02635668539247994,
+        "2022": 0.012361810852787236,
+        "2023": 0.02928347011477757,
+        "2024": 0.04617496778940533,
+        "2025": 0.020499167016479292,
+        "2026": 0.04665744934014208
+      },
+      "beta_to_market": 0.4896886349449709
+    },
+    "strategy_long_only": {
+      "total_return": 5.650297091155667,
+      "cagr": 0.2622612234007833,
+      "ann_vol": 0.2903892342361292,
+      "sharpe": 0.9495141942827143,
+      "sortino": 1.3406763637389167,
+      "max_drawdown": -0.6013609963185664,
+      "hit_rate": 0.5951219512195122,
+      "n_periods": 410,
+      "avg_turnover": 0.3460086930086568,
+      "gross_sharpe": 1.3894323217985776,
+      "pretax_sharpe": 1.1601776537696977,
+      "total_tax_drag": 0.6149667145512592,
+      "sharpe_ci95": [
+        0.2708547209377485,
+        1.665462432110326
+      ],
+      "beta_to_market": 1.113258233690275
+    },
+    "baselines": {
+      "equal_weight": {
+        "total_return": 2.963651319881879,
+        "cagr": 0.18446430234626177,
+        "ann_vol": 0.1895682614364465,
+        "sharpe": 0.9903184712480176,
+        "sortino": 1.293673866464956,
+        "max_drawdown": -0.39567432556476567,
+        "hit_rate": 0.5829268292682926,
+        "n_periods": 410
+      },
+      "equal_weight_net": {
+        "total_return": 1.8859705868049366,
+        "cagr": 0.13915343448830964,
+        "ann_vol": 0.18333201627734227,
+        "sharpe": 0.8045492858310246,
+        "sortino": 1.016485774360315,
+        "max_drawdown": -0.39967365231236207,
+        "hit_rate": 0.5780487804878048,
+        "n_periods": 410,
+        "avg_turnover": 0.012815422475543634
+      },
+      "momentum_12_1": {
+        "total_return": 2.921829304675385,
+        "cagr": 0.18292083873719456,
+        "ann_vol": 0.34973218063187733,
+        "sharpe": 0.6576081990300764,
+        "sortino": 0.9281259120968869,
+        "max_drawdown": -0.4330313085164522,
+        "hit_rate": 0.5609756097560976,
+        "n_periods": 410,
+        "avg_turnover": 0.2731707317073171,
+        "gross_sharpe": 0.8976579537162455,
+        "pretax_sharpe": 0.7816826443612258,
+        "total_tax_drag": 0.41811464474215376
+      }
+    }
+  },
+  "oos_summary": {
+    "mean_ic": 0.021042118510350722,
+    "ic_ir": 0.1414709375680451,
+    "ic_tstat": 6.399116935708941,
+    "ic_significant": true,
+    "hit_rate": 0.5547409579667644,
+    "n_days": 2046,
+    "long_short_decile_spread_5d": 0.006589259174392096,
+    "decile_monotonic": false
+  }
+}
