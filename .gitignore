@@ -21,3 +21,7 @@ venv/
 
 # Regenerable caches (instruments dump, wayback snapshots)
 datalake/cache/
+
+# Pre-cutover model registry snapshots — rollback points, not source.
+# Same reasoning as models/registry/: model binaries do not belong in git.
+models/registry_baseline_*/
