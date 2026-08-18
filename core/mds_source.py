@@ -171,12 +171,89 @@ def read_silver(start: Optional[str] = None, end: Optional[str] = None,
     df["is_member"] = df["is_member"].fillna(False).astype(bool)
     df["date"] = pd.to_datetime(df["date"])
 
+    # MDS's canonical form is SYMBOL.NS; this project's internal form is bare
+    # (`RELIANCE`, not `RELIANCE.NS`). The rule in both CLAUDE.mds is "convert
+    # only at boundaries", and this function IS the boundary — the docstring
+    # above promises a frame "shaped exactly like the Parquet one", and the
+    # Parquet lake is bare.
+    #
+    # Without this the suffix leaks all the way through Gold into signals and
+    # the paper portfolio, which ended up keying open positions as
+    # "TVSMOTOR.NS" while last_prices kept the bare "TVSMOTOR" — the same
+    # instrument spelled two ways in one file, with the bare half frozen at the
+    # cutover date.
+    df["symbol"] = df["symbol"].str.replace(r"\.NS$", "", regex=True)
+
     log.info("MDS silver: %s rows, %s symbols, %s..%s, %s member-rows",
              f"{len(df):,}", df["symbol"].nunique(),
              df["date"].min().date(), df["date"].max().date(),
              f"{int(df['is_member'].sum()):,}")
 
     return df[SILVER_COLUMNS]
+
+
+def wait_for_day_ready(timeout_s: int = 1800, poll_s: int = 60):
+    """Block until MDS publishes `day_ready` for the latest trading session.
+
+    Returns the published date, or None on timeout.
+
+    This replaces guessing at cron times. The old arrangement had this project
+    pull its own OHLCV from Kite at 07:45 and hope MDS's 07:00 run had finished;
+    a slow or failed MDS run produced a *stale-data rebalance* rather than a
+    blocked one, which is the failure mode that hides. On 2026-08-18 the MDS
+    pipeline died at 07:00:28 and Silver stayed three days old — exactly the case
+    this guards.
+
+    Waiting is also what makes dropping the local Kite pull safe: the reason to
+    keep an independent refresh was never the data, it was not knowing when the
+    shared data was ready.
+    """
+    import time
+
+    import psycopg2
+
+    if "MDS_READER_DSN" not in os.environ:
+        _load_env()
+    dsn = os.environ.get("MDS_READER_DSN")
+    if not dsn:
+        raise RuntimeError("MDS_READER_DSN is not set")
+
+    deadline = time.time() + timeout_s
+    while True:
+        conn = psycopg2.connect(dsn)
+        try:
+            with conn.cursor() as cur:
+                # The last COMPLETED session — strictly before today. This job
+                # runs pre-open (07:45), when today's session has not happened,
+                # so `<= current_date` would demand a date MDS cannot publish and
+                # block until timeout every single day. Never a weekday
+                # heuristic either: Indian market holidays are irregular and
+                # dim.calendar also carries the weekend Muhurat sessions.
+                cur.execute("""
+                    SELECT max(c.trade_date)
+                      FROM dim.calendar c
+                     WHERE c.is_trading_day AND c.trade_date < current_date
+                """)
+                (want,) = cur.fetchone()
+                cur.execute("""
+                    SELECT max(trade_date) FROM meta.partition_manifest
+                     WHERE dataset = 'day_ready'
+                """)
+                (have,) = cur.fetchone()
+        finally:
+            conn.close()
+
+        if have is not None and want is not None and have >= want:
+            log.info("MDS day_ready published for %s", have)
+            return have
+
+        if time.time() >= deadline:
+            log.error("MDS day_ready still at %s, expected %s — gave up after %ss",
+                      have, want, timeout_s)
+            return None
+
+        log.info("waiting for MDS day_ready: have=%s want=%s", have, want)
+        time.sleep(poll_s)
 
 
 if __name__ == "__main__":

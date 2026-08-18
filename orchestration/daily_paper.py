@@ -23,8 +23,35 @@ log = get_logger(__name__)
 
 
 def _refresh_data() -> bool:
-    """Pull the last few days from Kite and rebuild silver+gold. Returns False (skipped) if Kite
-    is not authenticated — the caller then rebalances on existing data."""
+    """Bring Gold up to date. Returns False if the refresh was skipped.
+
+    Two paths. With ``USE_MDS_SILVER=1`` this project owns no acquisition at all:
+    it waits for MDS to publish ``day_ready`` and rebuilds Gold from Silver. The
+    legacy path below — pull from Kite, rebuild the local Parquet lake — is kept
+    only for running without MDS.
+
+    Dropping the Kite pull is not a saving, it is a correctness fix. Once
+    ``build_gold`` reads MDS, the local pull maintains a Parquet lake that
+    nothing reads: `features/assembler.py` takes it only in the
+    ``USE_MDS_SILVER=0`` branch. So it was a full daily Kite fetch producing dead
+    data — and, on a box where the broker exists specifically to make MDS the
+    only Kite consumer, a third one nobody had counted.
+    """
+    from core.mds_source import is_enabled as _mds_enabled
+
+    if _mds_enabled():
+        from core.mds_source import wait_for_day_ready
+        from features.assembler import build_gold
+
+        with stage(log, "daily-data-refresh"):
+            if wait_for_day_ready() is None:
+                log.warning("MDS has not published day_ready — SKIPPING the refresh and "
+                            "rebalancing on the latest existing Gold. Check: "
+                            "python -m mds.cli status")
+                return False
+            build_gold()      # features → gold, sourced from MDS Silver
+        return True
+
     from ingest.kite_client import verify
 
     if not verify():
@@ -43,6 +70,8 @@ def _refresh_data() -> bool:
 
 
 def main() -> int:
+    from core.mds_source import is_enabled as _mds_enabled
+
     with stage(log, "daily-paper-driver"):
         refreshed = False
         try:
@@ -53,7 +82,7 @@ def main() -> int:
         # If Kite is live, top up any missing survivorship losers (idempotent, self-throttled;
         # a fast no-op once they're all backfilled). This is the recovery trigger for the
         # loser-backfill — it lands the day Kite's instruments endpoint is healthy again.
-        if refreshed:
+        if refreshed and not _mds_enabled():
             try:
                 from orchestration.backfill_losers import main as backfill_losers
                 backfill_losers()
