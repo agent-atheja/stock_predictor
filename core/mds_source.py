@@ -171,6 +171,19 @@ def read_silver(start: Optional[str] = None, end: Optional[str] = None,
     df["is_member"] = df["is_member"].fillna(False).astype(bool)
     df["date"] = pd.to_datetime(df["date"])
 
+    # MDS's canonical form is SYMBOL.NS; this project's internal form is bare
+    # (`RELIANCE`, not `RELIANCE.NS`). The rule in both CLAUDE.mds is "convert
+    # only at boundaries", and this function IS the boundary — the docstring
+    # above promises a frame "shaped exactly like the Parquet one", and the
+    # Parquet lake is bare.
+    #
+    # Without this the suffix leaks all the way through Gold into signals and
+    # the paper portfolio, which ended up keying open positions as
+    # "TVSMOTOR.NS" while last_prices kept the bare "TVSMOTOR" — the same
+    # instrument spelled two ways in one file, with the bare half frozen at the
+    # cutover date.
+    df["symbol"] = df["symbol"].str.replace(r"\.NS$", "", regex=True)
+
     log.info("MDS silver: %s rows, %s symbols, %s..%s, %s member-rows",
              f"{len(df):,}", df["symbol"].nunique(),
              df["date"].min().date(), df["date"].max().date(),
