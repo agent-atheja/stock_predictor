@@ -1,12 +1,13 @@
 {
   "baseline_id": "mds-2026-08-19",
   "established_on": "2026-08-19",
-  "status": "PROMOTED \u2014 models/registry holds these artifacts and they are live",
+  "status": "LIVE \u2014 promoted 2026-08-19 22:46, first live rebalance 2026-08-20 07:45",
   "supersedes": "mds-2026-08-18 (measurement only, never promoted)",
   "data_contract": {
     "source": "silver.v_equity_ohlcv_published",
     "adj_vintage": "2026-08-18",
-    "panel": "NIFTY200 PIT members, 310 symbols, 758,074 rows from 2015-01-01 through 2026-08-18"
+    "panel": "NIFTY200 PIT members, 310 symbols, 758,074 rows from 2015-01-01 through 2026-08-18",
+    "note": "The panel above is what these models were TRAINED on. It is not resnapshotted as the contract advances \u2014 re-cut the baseline instead, so a stated metric always names the data behind it."
   },
   "gate_metric": {
     "use": "OOS rank IC, and IC by year",
@@ -110,5 +111,21 @@
     "n_days": 2047,
     "long_short_decile_spread_5d": 0.006587801727714531,
     "decile_monotonic": false
+  },
+  "live_confirmation": {
+    "first_live_rebalance": "2026-08-20 07:45 IST",
+    "paper_nav": 983945,
+    "positions": 20,
+    "drawdown": -0.021,
+    "turnover_cost": 1617,
+    "source_chain": "MDS published day_ready for 2026-08-19 at 07:24; stock_predictor waited on it, read 758,344 Silver rows and built Gold of 738,814 rows, with no external call of its own."
+  },
+  "contract_state_at_confirmation": {
+    "as_of": "2026-08-20",
+    "silver_rows": 8007810,
+    "silver_symbols": 3290,
+    "published_dates": 7618,
+    "day_ready": "2026-08-19",
+    "latest_adj_vintage": "2026-08-20"
   }
 }
