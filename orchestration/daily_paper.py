@@ -52,21 +52,12 @@ def _refresh_data() -> bool:
             build_gold()      # features → gold, sourced from MDS Silver
         return True
 
-    from ingest.kite_client import verify
-
-    if not verify():
-        log.warning("Kite session not live — SKIPPING daily data refresh. Rebalancing on the "
-                    "latest existing Gold. Run: python -m ingest.kite_client login")
-        return False
-    from features.assembler import build_gold
-    from ingest.bronze_to_silver import build_silver
-    from ingest.daily_incremental import run as daily_pull
-
-    with stage(log, "daily-data-refresh"):
-        daily_pull()      # incremental OHLCV → bronze
-        build_silver()    # adjust + re-tag PIT membership → silver
-        build_gold()      # features → gold
-    return True
+    log.warning(
+        "USE_MDS_SILVER is off, but local acquisition has been retired — the Kite "
+        "and bhavcopy fetchers now live in archive/ and are deliberately not wired. "
+        "Rebalancing on the latest existing Gold. Set USE_MDS_SILVER=1."
+    )
+    return False
 
 
 def main() -> int:
@@ -82,13 +73,6 @@ def main() -> int:
         # If Kite is live, top up any missing survivorship losers (idempotent, self-throttled;
         # a fast no-op once they're all backfilled). This is the recovery trigger for the
         # loser-backfill — it lands the day Kite's instruments endpoint is healthy again.
-        if refreshed and not _mds_enabled():
-            try:
-                from orchestration.backfill_losers import main as backfill_losers
-                backfill_losers()
-            except Exception as exc:  # noqa: BLE001 — never let backfill block the rebalance
-                log.warning("Loser backfill skipped (%s).", exc)
-
         # Rebalance is the point of the loop; run it regardless of refresh outcome (idempotent).
         from execution.paper_broker import rebalance, status
         rebalance()

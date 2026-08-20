@@ -62,7 +62,7 @@ def build_gold() -> int:
             silver = read_dataset(cfg.data.silver, "equity_ohlcv_adj")
 
         if silver.empty:
-            log.error("Silver is empty — run ingest.bronze_to_silver first.")
+            log.error("Silver is empty — check MDS: python -m mds.cli status")
             return 0
         silver["date"] = pd.to_datetime(silver["date"])
 
